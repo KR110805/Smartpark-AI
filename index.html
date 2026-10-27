@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SMARTPARK AI - Mobile Camera Parking Gate Control</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="app-header">
+      <span class="badge-tag">AI Vehicle Detection &amp; Gate Automation</span>
+      <h1 class="app-title">SMARTPARK AI</h1>
+      <p class="app-subtitle">Mobile Camera Car Detection &amp; Automatic Parking Gate</p>
+    </header>
+
+    <!-- Top Status Bar -->
+    <div class="status-bar">
+      <div class="status-pill">
+        <span class="label">Workflow</span>
+        <span id="statAutomation" class="val status-idle">WAITING FOR VEHICLE</span>
+      </div>
+      <div class="status-pill">
+        <span class="label">IR Sensor</span>
+        <span id="statIrSensor" class="val status-ready">CLEAR</span>
+      </div>
+      <div class="status-pill">
+        <span class="label">Camera</span>
+        <span id="statCamera" class="val status-stopped">OFF</span>
+      </div>
+      <div class="status-pill">
+        <span class="label">AI Model</span>
+        <span id="statModel" class="val status-loading">LOADING</span>
+      </div>
+      <div class="status-pill">
+        <span class="label">Controller</span>
+        <span id="statController" class="val status-idle">MOCK (SIM)</span>
+      </div>
+      <div class="status-pill">
+        <span class="label">Gate State</span>
+        <span id="statGate" class="val status-closed">CLOSED</span>
+      </div>
+    </div>
+
+    <!-- IR-First Automatic Gate Workflow Banner Card -->
+    <div class="card" id="automationCard" style="border: 1px solid rgba(6, 182, 212, 0.4); background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(30, 41, 59, 0.95));">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span class="badge-tag" style="margin-bottom:0;">IR-First Autonomous Workflow</span>
+        <span id="badgeAutomationState" style="font-size:0.75rem; font-weight:700; color:#38bdf8; background:rgba(56, 189, 248, 0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(56, 189, 248, 0.3);">
+          Waiting for vehicle
+        </span>
+      </div>
+      <div id="automationHeadline" style="font-size: 1.1rem; font-weight: 700; color: #ffffff; margin-bottom: 4px;">
+        Waiting for vehicle approach
+      </div>
+      <div id="automationDetail" style="font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 12px;">
+        IR sensor monitoring entrance. Camera is OFF while idle. Gate remains CLOSED.
+      </div>
+
+      <!-- State Flow Step Tracker -->
+      <div class="automation-steps-grid" style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; text-align: center; font-size: 0.65rem;">
+        <div id="stepIdle" class="auto-step active" style="padding:6px 2px; border-radius:4px; background:rgba(6, 182, 212, 0.25); border:1px solid #06b6d4; color:#38bdf8; font-weight:700;">
+          1. IDLE
+        </div>
+        <div id="stepApproaching" class="auto-step" style="padding:6px 2px; border-radius:4px; background:#0f172a; border:1px solid var(--border-color); color:var(--text-muted);">
+          2. Approaching
+        </div>
+        <div id="stepVerifying" class="auto-step" style="padding:6px 2px; border-radius:4px; background:#0f172a; border:1px solid var(--border-color); color:var(--text-muted);">
+          3. Verifying Car
+        </div>
+        <div id="stepGateOpen" class="auto-step" style="padding:6px 2px; border-radius:4px; background:#0f172a; border:1px solid var(--border-color); color:var(--text-muted);">
+          4. Gate Open
+        </div>
+        <div id="stepClearing" class="auto-step" style="padding:6px 2px; border-radius:4px; background:#0f172a; border:1px solid var(--border-color); color:var(--text-muted);">
+          5. Clearing
+        </div>
+      </div>
+
+      <!-- Simulation Action Buttons (Interactive testing for MOCK & Hardware) -->
+      <div style="margin-top: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+        <button id="btnSimulateObstacle" class="btn btn-warning" style="font-size:0.75rem; padding:7px 10px;">
+          🚗 Simulate IR Obstacle (Approach)
+        </button>
+        <button id="btnSimulateClear" class="btn btn-secondary" style="font-size:0.75rem; padding:7px 10px;">
+          🟢 Simulate IR Clear (Clearance)
+        </button>
+      </div>
+    </div>
+
+    <!-- Camera Section Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+            <circle cx="12" cy="13" r="4"></circle>
+          </svg>
+          Live Entrance Camera
+        </h2>
+        <span id="cameraModeBadge" class="card-subtitle">Rear Camera (Preferred)</span>
+      </div>
+
+      <!-- Video & Overlay Canvas -->
+      <div class="video-wrapper">
+        <video id="cameraVideo" playsinline muted autoplay></video>
+        <canvas id="detectionCanvas"></canvas>
+        <div id="videoPlaceholder" class="video-placeholder">
+          <span>📷</span>
+          <p>Camera is inactive.</p>
+          <p style="font-size:0.75rem; margin-top:4px;">Tap "Start Camera" to grant mobile browser permission.</p>
+        </div>
+      </div>
+
+      <!-- Camera Action Buttons -->
+      <div class="btn-grid">
+        <button id="btnStartCamera" class="btn btn-primary">Start Camera</button>
+        <button id="btnStopCamera" class="btn btn-secondary" disabled>Stop Camera</button>
+      </div>
+      <div class="btn-grid">
+        <button id="btnStartDetection" class="btn btn-success" disabled>Start AI Detection</button>
+        <button id="btnStopDetection" class="btn btn-secondary" disabled>Stop AI Detection</button>
+      </div>
+      <div style="margin-top: 4px;">
+        <button id="btnCaptureFrame" class="btn btn-secondary" style="width: 100%;" disabled>
+          📸 Capture Snapshot Frame
+        </button>
+      </div>
+    </div>
+
+    <!-- AI Vehicle Detection Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+            <line x1="8" y1="21" x2="16" y2="21"></line>
+            <line x1="12" y1="17" x2="12" y2="21"></line>
+          </svg>
+          Vehicle Detection (Car Policy)
+        </h2>
+        <span class="card-subtitle">Policy: CAR ONLY</span>
+      </div>
+
+      <div id="detectionHero" class="detection-hero">
+        <div class="metric-label">Detection Status</div>
+        <div id="detectedStatusText" class="metric-val-large">AWAITING CAMERA</div>
+        <div id="detectedDetailText" style="font-size:0.82rem; color:var(--text-secondary);">
+          Only verified cars trigger automatic gate opening. Non-car objects are rejected.
+        </div>
+      </div>
+
+      <!-- Consecutive Confirmation Progress Bar (3 Cycles) -->
+      <div class="progress-container">
+        <div class="progress-header">
+          <span>Consecutive Confirmation (Car Policy)</span>
+          <span id="confirmationRatio">0 / 3</span>
+        </div>
+        <div class="progress-bar">
+          <div id="confirmationFill" class="progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="detection-details-grid">
+        <div class="detail-row">
+          <span class="detail-k">Identified Class</span>
+          <span id="detailClass" class="detail-v">None</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-k">Confidence</span>
+          <span id="detailScore" class="detail-v">0%</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-k">Policy Gate Trigger</span>
+          <span id="detailPolicy" class="detail-v">LOCKED</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-k">Last Inference</span>
+          <span id="detailTime" class="detail-v">--:--:--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parking Gate Controller Abstraction Card -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M18 20V10M12 20V4M6 20v-6"></path>
+          </svg>
+          Gate Controller Abstraction
+        </h2>
+        <span id="controllerModeBadge" class="badge-tag">MOCK MODE (SIMULATED)</span>
+      </div>
+
+      <!-- Virtual Gate Animation Display -->
+      <div class="gate-visual-wrapper">
+        <div class="barrier-box">
+          <div class="barrier-pole"></div>
+          <div id="barrierArm" class="barrier-arm"></div>
+        </div>
+        <div class="ir-sensors-grid">
+          <div style="font-size:0.78rem; font-weight:700; color:var(--text-primary);">
+            Active Mode: <span id="textAdapterName" style="color:var(--accent-cyan);">Mock Simulator</span>
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">
+            Barrier Position: <b id="gateAngleText" style="color:var(--text-primary);">0° (Closed)</b>
+          </div>
+          <!-- IR Safety Beam Status -->
+          <div style="font-size:0.75rem; font-weight:600;">
+            IR Safety Sensor: <span id="irSensorBadge" style="color:var(--accent-green);">● CLEAR (Safe to close)</span>
+          </div>
+          <div id="hwFeedbackNotice" style="font-size:0.72rem; color:var(--accent-amber);">
+            ⚠️ Note: Running in simulated mode. Switch to SERIAL for Arduino UNO.
+          </div>
+        </div>
+      </div>
+
+      <!-- 4-Stage Verification Pipeline Display -->
+      <div style="background:var(--bg-card-sub); border:1px solid var(--border-color); border-radius:var(--radius-sm); padding:10px; margin-bottom:12px;">
+        <div style="font-size:0.72rem; font-weight:700; text-transform:uppercase; color:var(--text-muted); margin-bottom:6px;">
+          Hardware Verification Pipeline
+        </div>
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:4px; font-size:0.68rem; text-align:center;">
+          <div id="stage1Pill" style="padding:4px 2px; border-radius:4px; background:#0f172a; border:1px solid var(--border-color); color:var(--text-muted);">
+            1. Requested
+          </div>
+          <div id="stage2Pill" style="padding:4px 2px; border-radius:4px; background:#0f172a; border:1px solid var(--border-color); color:var(--text-muted);">
+            2. Transmitted
+          </div>
+          <div id="stage3Pill" style="padding:4px 2px; border-radius:4px; background:#0f172a; border:1px solid var(--border-color); color:var(--text-muted);">
+            3. Acknowledged
+          </div>
+          <div id="stage4Pill" style="padding:4px 2px; border-radius:4px; background:#0f172a; border:1px solid var(--border-color); color:var(--text-muted);" title="SG90 has no position encoder feedback; confirms Arduino PWM command execution.">
+            4. Commanded (Open-Loop)
+          </div>
+        </div>
+        <div style="font-size:0.65rem; color:var(--text-muted); margin-top:5px; text-align:center;">
+          Note: SG90 micro-servo is open-loop (no encoder/limit switch feedback).
+        </div>
+      </div>
+
+      <div class="detection-details-grid" style="margin-top:0;">
+        <div class="detail-row">
+          <span class="detail-k">Controller State</span>
+          <span id="detailGateState" class="detail-v">IDLE</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-k">Last Acknowledgment</span>
+          <span id="detailLastCommand" class="detail-v">None</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-k">Hardware Verification</span>
+          <span id="detailHwStatus" class="detail-v" style="color:var(--accent-amber);">Simulated Only</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-k">Vehicle Event Latch</span>
+          <span id="detailLatchStatus" class="detail-v" style="color:var(--accent-cyan);">READY</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-k">Vehicle Count</span>
+          <span id="detailVehicleCount" class="detail-v">0</span>
+        </div>
+      </div>
+
+      <!-- Manual Trigger Buttons -->
+      <div style="margin-top: 12px; display:flex; gap:8px;">
+        <button id="btnManualOpen" class="btn btn-primary" style="flex:1;">
+          Request Open
+        </button>
+        <button id="btnManualClose" class="btn btn-secondary" style="flex:1;">
+          Request Close
+        </button>
+        <button id="btnEmergencyStop" class="btn btn-danger" style="flex:0.8;">
+          E-STOP
+        </button>
+      </div>
+    </div>
+
+    <!-- Controller Configuration & Tuning -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" style="font-size: 0.95rem;">
+          Controller &amp; AI Settings
+        </h2>
+        <span class="card-subtitle">Configurable Interface</span>
+      </div>
+
+      <!-- Controller Mode Selection -->
+      <div class="setting-item">
+        <span>Controller Mode</span>
+        <select id="selectHardwareMode" class="btn btn-secondary" style="padding:6px 10px; font-size:0.8rem;">
+          <option value="MOCK" selected>1. Mock Simulator (Virtual - Default)</option>
+          <option value="SERIAL">2. Arduino UNO (USB Serial Bridge)</option>
+          <option value="EXISTING_HTTP_CONTROLLER">3. Existing HTTP Controller</option>
+        </select>
+      </div>
+
+      <!-- Serial Port Configuration Row (Visible in SERIAL Mode) -->
+      <div id="serialConfigRow" style="display:none; margin-bottom:12px; background:var(--bg-card-sub); padding:10px; border-radius:var(--radius-sm);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+          <label style="font-size:0.75rem; color:var(--text-muted);">
+            Arduino USB Serial Port:
+          </label>
+          <button id="btnRefreshPorts" class="btn btn-secondary" style="padding:2px 8px; font-size:0.7rem;">Refresh Ports</button>
+        </div>
+        <div style="display:flex; gap:6px;">
+          <select id="selectSerialPort" class="btn btn-secondary" style="flex:1; padding:6px 10px; font-size:0.8rem; text-align:left;">
+            <option value="">Scanning for Arduino UNO...</option>
+          </select>
+          <button id="btnConnectSerial" class="btn btn-success" style="padding:6px 12px; font-size:0.8rem;">Connect</button>
+          <button id="btnDisconnectSerial" class="btn btn-secondary" style="padding:6px 12px; font-size:0.8rem;" title="Disconnects port so Arduino IDE / Serial Monitor can access it">Disconnect</button>
+        </div>
+        <div id="serialStatusNote" style="font-size:0.72rem; color:var(--text-muted); margin-top:6px;">
+          Auto-discovering USB devices...
+        </div>
+      </div>
+
+      <!-- Endpoint Configuration for Existing Hardware -->
+      <div id="endpointConfigRow" style="display:none; margin-bottom:12px; background:var(--bg-card-sub); padding:10px; border-radius:var(--radius-sm);">
+        <label id="endpointLabel" style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:4px;">
+          Controller Endpoint URL:
+        </label>
+        <input type="text" id="inputEndpointUrl" placeholder="e.g. http://192.168.1.100/gate/open" style="width:100%; padding:6px 10px; background:#0f172a; border:1px solid var(--border-color); color:#fff; border-radius:4px; font-size:0.8rem;">
+      </div>
+
+      <div class="setting-item">
+        <span>Car Confidence Threshold</span>
+        <div class="slider-group">
+          <input type="range" id="sliderThreshold" min="50" max="95" value="80" step="5">
+          <span id="valThreshold" style="font-weight:700; min-width:35px;">80%</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <span>Consecutive Confirmations</span>
+        <div class="slider-group">
+          <input type="range" id="sliderConfirmations" min="1" max="5" value="3" step="1">
+          <span id="valConfirmations" style="font-weight:700; min-width:35px;">3</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <span>Automatic Gate Trigger</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleAutoGate" checked>
+          <span class="slider-round"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <span>IR-First Camera Control</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="toggleIrFirst" checked>
+          <span class="slider-round"></span>
+        </label>
+      </div>
+
+      <div class="setting-item">
+        <span>Vehicle Clearance Delay</span>
+        <div class="slider-group">
+          <input type="range" id="sliderClearanceDelay" min="500" max="5000" value="2000" step="250">
+          <span id="valClearanceDelay" style="font-weight:700; min-width:40px;">2.0s</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Real-Time Activity & Safety Log -->
+    <div class="card">
+      <div class="card-header">
+        <h2 class="card-title" style="font-size: 0.95rem;">
+          Activity &amp; Safety Audit Log
+        </h2>
+        <button id="btnClearLog" class="btn btn-secondary" style="padding:2px 8px; font-size:0.7rem;">Clear</button>
+      </div>
+      <div id="logBox" class="log-box"></div>
+    </div>
+
+    <!-- Footer Documentation / Note -->
+    <footer style="text-align:center; font-size:0.75rem; color:var(--text-muted); margin-top:20px;">
+      <p>SMARTPARK AI &bull; Edge Computer Vision &amp; Parking Gate Control</p>
+      <p style="margin-top:2px;">Runs locally in browser with TensorFlow.js + COCO-SSD &bull; Zero external cloud APIs</p>
+    </footer>
+  </div>
+
+  <!-- Vendor / Local Model Libraries (with CDN fallback) -->
+  <script src="/vendor/tf.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js'"></script>
+  <script src="/vendor/coco-ssd.min.js" onerror="this.onerror=null;this.src='https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js'"></script>
+
+  <!-- Application Modules -->
+  <script src="js/config.js"></script>
+  <script src="js/camera.js"></script>
+  <script src="js/vehicleDetection.js"></script>
+  <script src="js/gateController.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

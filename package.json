@@ -1,0 +1,33 @@
+{
+  "name": "smartpark-ai",
+  "version": "1.0.0",
+  "description": "Mobile Camera-Based Car Detection and Automatic IoT Parking Gate Control",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node tests/detection_policy_test.js && node tests/serial_bridge_test.js && node tests/ir_first_workflow_test.js",
+    "test:workflow": "node tests/ir_first_workflow_test.js",
+    "test:serial": "node tests/serial_bridge_test.js",
+    "mock": "SIMULATION_MODE=true node server/server.js"
+  },
+  "keywords": [
+    "iot",
+    "smart-parking",
+    "tensorflow-js",
+    "coco-ssd",
+    "arduino",
+    "esp32",
+    "servo-gate",
+    "computer-vision"
+  ],
+  "author": "SmartPark AI Team",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.21.2",
+    "serialport": "^13.0.0"
+  },
+  "devDependencies": {
+    "@tensorflow-models/coco-ssd": "^2.2.3",
+    "@tensorflow/tfjs": "^4.22.0"
+  }
+}
